@@ -36,69 +36,71 @@
 - **简化的包含路径**：通过 platformio.ini 统一管理
 - **完整的文档**：每个模块都有详细说明
 
+## ⚠️ 重要配置说明
+
+### ESP32-S3 编译参数保护
+
+本项目使用 ESP32-S3 芯片，**必须**使用正确的编译参数：
+
+```ini
+# ✅ 正确参数
+-mlongcalls
+
+# ❌ 错误参数（会导致编译失败）
+-mlong-calls
+```
+
+**如果遇到编译错误**：
+```
+Unknown argument '-mlong-calls'; did you mean '-mlongcalls'?
+```
+
+**解决方法**：
+```bash
+# 1. 检查配置
+make check-config
+
+# 2. 手动修复 platformio.ini 中的参数
+# 将 -mlong-calls 改为 -mlongcalls (注意：没有连字符)
+
+# 3. 重新编译
+make build
+```
+
+**配置保护机制**：
+- `platformio.ini` 中有明确的警告注释
+- `scripts/check_platformio.py` 自动检查配置
+- `Makefile` 提供便捷的检查命令
+
 ## 项目结构
 
 ```
-esp32s3-holocubic-LinusTorvalds/
-├── src/
-│   ├── core/                   # 核心系统模块
-│   │   ├── boot/              # 系统启动
-│   │   │   ├── system_boot.cpp
-│   │   │   ├── system_boot.h
-│   │   │   └── hardware_init.h
-│   │   ├── config/            # 配置管理
-│   │   │   └── hardware_config.h
-│   │   ├── state/             # 状态管理
-│   │   │   ├── system_state.cpp
-│   │   │   └── system_state.h
-│   │   └── types/             # 类型定义
-│   │       ├── system_types.h
-│   │       └── error_handling.h
-│   ├── app/                   # 应用层
-│   │   ├── core/              # 应用核心
-│   │   │   └── app_main.cpp
-│   │   ├── managers/          # 管理器
-│   │   │   └── led_manager.cpp
-│   │   ├── monitoring/        # 监控
-│   │   │   └── heartbeat.cpp
-│   │   ├── network/           # 网络应用
-│   │   │   └── wifi_app.cpp
-│   │   └── interface/         # 用户接口
-│   │       └── command_handler.cpp
-│   ├── drivers/               # 硬件驱动层
-│   │   ├── display/           # 显示驱动
-│   │   │   ├── display_driver.cpp
-│   │   │   └── display_driver.h
-│   │   ├── led/               # LED驱动
-│   │   │   ├── led_driver.cpp
-│   │   │   └── led_driver.h
-│   │   └── storage/           # 存储驱动 (预留)
-│   │       ├── flash/
-│   │       └── sd/
-│   ├── system/                # 系统工具
-│   │   ├── debug_utils.cpp
-│   │   └── panic.cpp
-│   ├── test/                  # 测试模块
-│   │   ├── imu_gesture_test.cpp
-│   │   ├── led_test.cpp
-│   │   └── tft_display_test.cpp
-│   └── main.cpp               # 主程序入口
-├── config/                    # 配置文件
-│   ├── debug_config.h         # 调试配置
-│   ├── app_config.h           # 应用配置
-│   └── secrets.h              # 敏感信息 (gitignore)
-├── lib/                       # 第三方库
-│   └── IMUGesture/            # IMU手势识别库
-│       ├── src/
-│       │   ├── imu_gesture_driver.h
-│       │   └── imu_gesture_driver.cpp
-│       └── library.properties
-├── docs/                      # 项目文档
-│   ├── storage/               # 存储系统文档
-│   └── IMU库迁移文档/         # IMU库迁移指南
-├── platformio.ini             # 构建配置
-├── FLASH_8MB.csv             # Flash分区表
-└── README.md                 # 本文档
+ESP32-S3 HoloCubic (Linux Kernel Style)
+═══════════════════════════════════════
+
+main.cpp          ← init/main.c风格，只做启动和调度
+├── app/           ← 应用层 (用户空间)
+│   ├── core/      ├── managers/   ├── monitoring/
+│   ├── network/   └── interface/
+├── system/        ← 系统服务层
+│   ├── debug_utils.*  └── panic.*
+├── drivers/       ← 设备驱动层
+│   ├── display/   ├── led/        └── storage/ (预留)
+└── core/          ← 硬件抽象层
+    ├── boot/      ├── config/     ├── state/
+    └── types/
+
+config/            ← 编译时配置
+├── debug_config.h ├── app_config.h └── secrets.h
+
+docs/              ← 统一文档系统
+├── KNOWLEDGE_BASE.md     ← 核心知识库 ⭐
+├── core/LINUS_RULES.md   ← 项目铁律
+└── debugging/            ← 问题解决方案
+
+lib/IMUGesture/    ← IMU手势识别库
+platformio.ini     ← 构建配置 (ESP32-S3专用)
+FLASH_8MB.csv      ← Flash分区表
 ```
 
 ## 核心特性
@@ -204,6 +206,14 @@ SDA:  GPIO 17    SCL:  GPIO 18
 ADDR: 0x6B       (I2C地址)
 ```
 
+#### SD卡存储 (SD_MMC模式)
+```
+CLK:  GPIO 2     (时钟线)
+CMD:  GPIO 38    (命令线)
+D0:   GPIO 1     (数据线0)
+```
+**注意**: 使用SD_MMC模式，支持FAT32格式的SD卡
+
 ## 功能特性
 
 ### 🎮 IMU手势识别
@@ -227,6 +237,12 @@ ADDR: 0x6B       (I2C地址)
 - **自动连接**：启动时自动连接已配置网络
 - **状态显示**：TFT屏幕显示连接状态
 - **串口控制**：通过串口命令管理WiFi
+
+### 💾 SD卡存储
+- **SD_MMC模式**：高速SD卡访问，支持大容量卡
+- **FAT32支持**：兼容标准文件系统
+- **JSON配置**：支持从SD卡读取配置文件
+- **实时显示**：TFT屏幕显示SD卡状态和内容
 
 ## 串口命令
 
@@ -266,7 +282,16 @@ ADDR: 0x6B       (I2C地址)
 #define HW_IMU_SCL              18   // I2C SCL引脚
 #define HW_RGB_LED_PIN          39   // RGB LED数据引脚
 #define HW_RGB_LED_NUM          2    // LED数量
+
+// SD卡配置 (SD_MMC模式)
+#define HW_SD_CLK               2    // SD卡时钟引脚
+#define HW_SD_CMD               38   // SD卡命令引脚  
+#define HW_SD_D0                1    // SD卡数据引脚D0
 ```
+关键的初始化方法：
+SD_MMC.setPins(HW_SD_CLK, HW_SD_CMD, HW_SD_D0);
+SD_MMC.begin("/root", true, false, SDMMC_FREQ_DEFAULT)
+重要说明：使用 SDMMC_FREQ_DEFAULT 而不是默认的40MHz频率，挂载点使用 "/root" 而不是默认的 "/sdcard"
 
 ## 性能特性
 
@@ -311,20 +336,26 @@ ADDR: 0x6B       (I2C地址)
 
 ## 故障排除
 
-### 编译问题
-- **头文件找不到**：检查 `platformio.ini` 中的包含路径
-- **链接错误**：确认所有必要的库都已包含
-- **内存不足**：检查 Flash 分区表配置
+### 🚨 常见问题快速修复
 
-### 运行时问题
-- **串口无输出**：检查波特率设置 (115200)
-- **显示异常**：检查 TFT 引脚连接
-- **手势不识别**：检查 IMU 传感器连接和地址
+```bash
+# ESP32-S3编译器参数错误
+Unknown argument '-mlong-calls'; did you mean '-mlongcalls'?
+→ 解决：make check-config
 
-### 性能问题
-- **响应慢**：检查主循环延时设置
-- **内存泄漏**：项目使用静态分配，无内存泄漏风险
-- **功耗高**：检查 LED 亮度和显示背光设置
+# TFT_eSPI字体崩溃
+StoreProhibited (NULL指针访问)
+→ 解决：在hardware_config.h添加 #define LOAD_GLCD
+
+# SD卡无法读取
+SD card mount failed
+→ 解决：检查FAT32格式，引脚连接(CLK=2,CMD=38,D0=1)
+```
+
+### 📖 详细解决方案
+- **完整故障排除指南**：[docs/KNOWLEDGE_BASE.md](docs/KNOWLEDGE_BASE.md#快速解决方案)
+- **核心问题解决**：[docs/debugging/CORE_SOLUTIONS.md](docs/debugging/CORE_SOLUTIONS.md)
+- **SD卡专项调试**：[docs/storage存储/SD_CARD_DEBUG_SOLUTION.md](docs/storage存储/SD_CARD_DEBUG_SOLUTION.md)
 
 ## 项目哲学
 

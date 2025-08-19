@@ -40,7 +40,9 @@
 #if ENABLE_TEST_CODE
     #define ENABLE_LED_TESTS        1       // LED 测试套件
     #define ENABLE_TFT_TESTS        1       // TFT 显示测试套件
-    #define ENABLE_IMU_TESTS        1       // IMU 手势识别测试套件
+    #define ENABLE_IMU_TESTS        0       // IMU 手势识别测试套件
+    #define ENABLE_SD_TESTS         1       // SD卡存储测试套件
+    #define ENABLE_FLASH_TESTS      1       // Flash存储测试套件
     #define ENABLE_HARDWARE_TESTS   1       // 硬件测试
     #define ENABLE_DEBUG_COMMANDS   1       // 调试命令
     #define ENABLE_SYSTEM_INFO      1       // 系统信息打印
@@ -48,6 +50,8 @@
     #define ENABLE_LED_TESTS        0       // 生产环境禁用
     #define ENABLE_TFT_TESTS        0       // 生产环境禁用
     #define ENABLE_IMU_TESTS        0       // 生产环境禁用
+    #define ENABLE_SD_TESTS         0       // 生产环境禁用
+    #define ENABLE_FLASH_TESTS      0       // 生产环境禁用
     #define ENABLE_HARDWARE_TESTS   0
     #define ENABLE_DEBUG_COMMANDS   0
     #define ENABLE_SYSTEM_INFO      0
@@ -68,6 +72,9 @@
 
 // TFT显示测试 - 控制是否运行显示测试代码
 #define DEBUG_TFT_DISPLAY_TEST 0  // 暂时禁用避免硬件冲突
+
+// Flash存储调试
+#define DEBUG_FLASH_ENABLED 1
 
 // ========================================
 // 调试宏定义 - 简单有效
@@ -130,6 +137,13 @@
 #define DEBUG_LOG_TFT(fmt, ...)
 #endif
 
+// Flash存储调试宏
+#if DEBUG_FLASH_ENABLED && (GLOBAL_DEBUG_LEVEL >= DEBUG_LEVEL_INFO)
+#define DEBUG_LOG_FLASH(fmt, ...) Serial.printf("[FLASH] " fmt "\n", ##__VA_ARGS__)
+#else
+#define DEBUG_LOG_FLASH(fmt, ...)
+#endif
+
 // ========================================
 // 便捷调试函数
 // ========================================
@@ -168,5 +182,8 @@ static inline void debug_system_info() {
     Serial.printf("[SYSTEM] Uptime: %lu ms\n", millis());
 #endif
 }
+
+// 打印Flash分区信息 - 声明，实现在使用的地方
+void debug_flash_info();
 
 #endif // DEBUG_CONFIG_H

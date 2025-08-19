@@ -7,11 +7,18 @@
 #include "app_main.h"           // 应用主程序
 #include "led_manager.h"        // LED管理器
 #include "display_driver.h"     // 显示驱动
+#include "../config/app_constants.h"  // 应用常量
 
 #include "imu_gesture_driver.h" // IMU手势驱动
 #include "hardware_config.h"    // 硬件配置
+#include "system_constants.h"   // 系统常量定义
 #include <Wire.h>
 #include <SPIFFS.h>  // SPIFFS文件系统
+#include <FS.h>      // File系统基础类
+
+#if ENABLE_SD_TESTS
+#include "SD_MMC.h"  // SD卡存储
+#endif
 
 #if ENABLE_SYSTEM_INFO
 #include "system/debug_utils.h"
@@ -125,14 +132,38 @@ boot_result_t storage_init_all(void) {
   // 打印SPIFFS信息
   size_t total_bytes = SPIFFS.totalBytes();
   size_t used_bytes = SPIFFS.usedBytes();
-  Serial.printf("    ✓ SPIFFS: %d/%d bytes (%.1f%% used)\n", 
+  Serial.printf("    ✓ SPIFFS: %zu/%zu bytes (%.1f%% used)\n", 
                 used_bytes, total_bytes, 
-                (float)used_bytes / total_bytes * 100);
+                (float)used_bytes / total_bytes * PERCENTAGE_MULTIPLIER);
+  
 
-  //** SD卡存储初始化 - SD_MMC (暂时禁用)
-  Serial.println("  - SD Card Storage (SD_MMC) - DISABLED");
-  // g_sd_storage.init();  // SdCard::init()内部处理所有错误
-  Serial.println("    ✓ SD card initialization skipped");
+
+#if ENABLE_SD_TESTS
+  //** SD卡存储初始化 - SD_MMC
+  Serial.println("  - SD Card Storage (SD_MMC)");
+  
+  // ESP32-S3 SD卡初始化 - 使用验证过的HoloCubic配置
+  Serial.printf("    Using HoloCubic pins: CLK=%d, CMD=%d, D0=%d\n", HW_SD_CLK, HW_SD_CMD, HW_SD_D0);
+  Serial.println("    Note: Using SDMMC_FREQ_DEFAULT to avoid ESP32-S3 40MHz frequency issues");
+  
+  // 关键解决方案：使用SDMMC_FREQ_DEFAULT避免ESP32-S3的40MHz频率问题
+  SD_MMC.setPins(HW_SD_CLK, HW_SD_CMD, HW_SD_D0);
+  if (SD_MMC.begin("/root", true, false, SDMMC_FREQ_DEFAULT)) {
+    uint64_t cardSize = SD_MMC.cardSize() / BYTES_TO_MB; // 原魔数: (1024 * 1024)
+    uint8_t cardType = SD_MMC.cardType();
+    Serial.printf("    ✓ SD card initialized: %lluMB\n", cardSize);
+    Serial.printf("    ✓ Card type: %s\n", 
+                  cardType == CARD_MMC ? "MMC" :
+                  cardType == CARD_SD ? "SDSC" :
+                  cardType == CARD_SDHC ? "SDHC" : "UNKNOWN");
+  } else {
+    Serial.println("    ✗ SD card initialization failed with HoloCubic method");
+    Serial.println("    Check: 1) SD card inserted? 2) Pin connections? 3) Card format (FAT32)?");
+  }
+#else
+  //** SD卡存储跳过 - 测试被禁用
+  Serial.println("  - SD Card Storage: Disabled");
+#endif
 
   return BOOT_OK;
 }
@@ -163,15 +194,15 @@ boot_result_t hardware_init_all(void) {
   
   // I2C + 传感器 + 驱动 - 一次性完成，无状态检查
   Wire.begin(HW_IMU_SDA, HW_IMU_SCL);
-  Wire.setClock(400000);
-  Wire.setTimeout(1000);
+  Wire.setClock(I2C_CLOCK_FREQUENCY_HZ);
+  Wire.setTimeout(I2C_TIMEOUT_MS);
   QMI8658_init();        // 直接初始化，无检查
   imu_gesture_init();    // 手势驱动初始化，无检查
   
   Serial.println("  ✓ IMU system initialized (Linus style - no checks)");
 
   //** 启动指示 - 蓝色闪烁
-  led_set_solid(LED_PRIORITY_SYSTEM, 0, 0, 255, HW_LED_STARTUP_DURATION_MS);
+  led_set_solid(LED_PRIORITY_SYSTEM, 0, 0, PWM_MAX_VALUE, HW_LED_STARTUP_DURATION_MS); // 原魔数: 255
 
   return BOOT_OK;
 }
@@ -232,13 +263,51 @@ boot_result_t system_boot_sequence(void) {
   if (SPIFFS.begin(false)) {
     size_t total = SPIFFS.totalBytes();
     size_t used = SPIFFS.usedBytes();
-    Serial.printf("Flash (SPIFFS): %d/%d bytes (%.1f%% used)\n", 
-                  used, total, (float)used / total * 100);
+    Serial.printf("Flash (SPIFFS): %zu/%zu bytes (%.1f%% used)\n", 
+                  used, total, (float)used / total * PERCENTAGE_MULTIPLIER);
   } else {
     Serial.println("Flash (SPIFFS): ERROR - Mount failed");
   }
-  Serial.println("SD Card: Initialized (see boot log for details)");
+  
+#if ENABLE_SD_TESTS
+  if (SD_MMC.cardSize() > 0) {
+    uint64_t cardSize = SD_MMC.cardSize() / BYTES_TO_MB; // 原魔数: (1024 * 1024)
+    Serial.printf("SD Card: %lluMB available\n", cardSize);
+  } else {
+    Serial.println("SD Card: Not available");
+  }
+#else
+  Serial.println("SD Card: Tests disabled");
+#endif
   Serial.println("=============================");
   
   return BOOT_OK;
+}
+
+//** 实现Flash信息打印函数
+void debug_flash_info() {
+#if DEBUG_FLASH_ENABLED && (GLOBAL_DEBUG_LEVEL >= DEBUG_LEVEL_INFO)
+    Serial.println("========================================");
+    Serial.println("=== Flash Partition Information ===");
+    Serial.println("========================================");
+    Serial.printf("[FLASH] Total size: %u bytes (%.2f MB)\n", 
+        ESP.getFlashChipSize(), ESP.getFlashChipSize() / KB_TO_MB_DIVISOR / BYTES_TO_KB); // 原魔数: 1024.0 / 1024.0
+    Serial.printf("[FLASH] Speed: %u Hz\n", ESP.getFlashChipSpeed());
+    Serial.printf("[FLASH] Mode: %u\n", ESP.getFlashChipMode());
+    
+    // SPIFFS信息
+    if (SPIFFS.begin(false)) {
+        size_t total_bytes = SPIFFS.totalBytes();
+        size_t used_bytes = SPIFFS.usedBytes();
+        Serial.printf("[SPIFFS] Total: %zu bytes (%.2f MB)\n", 
+            total_bytes, total_bytes / KB_TO_MB_DIVISOR / BYTES_TO_KB); // 原魔数: 1024.0 / 1024.0
+        Serial.printf("[SPIFFS] Used: %zu bytes (%.2f MB)\n", 
+            used_bytes, used_bytes / KB_TO_MB_DIVISOR / BYTES_TO_KB); // 原魔数: 1024.0 / 1024.0
+        Serial.printf("[SPIFFS] Free: %zu bytes (%.2f MB)\n", 
+            total_bytes - used_bytes, (total_bytes - used_bytes) / KB_TO_MB_DIVISOR / BYTES_TO_KB); // 原魔数: 1024.0 / 1024.0
+    } else {
+        Serial.println("[SPIFFS] Not mounted");
+    }
+    Serial.println("========================================");
+#endif
 }

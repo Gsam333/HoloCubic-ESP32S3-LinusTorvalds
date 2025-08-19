@@ -3,12 +3,13 @@
 //** "简洁胜过复杂" / "Simple is better than complex"
 
 #include "display_driver.h"
+#include "../../core/config/app_constants.h"
 
 void example_basic_usage(void) {
     //** 基本使用 - 推荐方式 / Basic usage - recommended way
     display_init();
     display_clear_black();
-    display_pixel_white(120, 120);
+    display_pixel_white(DISPLAY_CENTER_X, DISPLAY_CENTER_Y); // 原魔数: 120, 120
     display_backlight_normal();
 }
 
@@ -19,8 +20,8 @@ void example_advanced_usage(void) {
     //** 类型安全，简洁明了 / Type-safe and straightforward
     TFT_eSPI* tft = display_tft();
     tft->setTextColor(TFT_WHITE);
-    tft->drawString("Hello Linus!", 10, 10);
-    tft->drawCircle(120, 120, 50, TFT_RED);
+    tft->drawString("Hello Linus!", DISPLAY_TEXT_START_X, DISPLAY_TEXT_START_Y); // 原魔数: 10, 10
+    tft->drawCircle(DISPLAY_CENTER_X, DISPLAY_CENTER_Y, DISPLAY_CIRCLE_RADIUS, TFT_RED); // 原魔数: 120, 120, 50
 }
 
 //** ========================================

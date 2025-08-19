@@ -17,6 +17,14 @@
 #include "test/imu_gesture_test.h" // 使用主工程的测试模块 - 测试代码属于主工程
 #endif
 
+#if ENABLE_FLASH_TESTS
+#include "test/storage_test.h"
+#endif
+
+#if ENABLE_SD_TESTS
+#include "test/sd_card_diagnostic.h"
+#endif
+
 //** Arduino setup() - 系统启动入口点
 //** Linus原则：main() 只做调度，具体实现在独立模块中
 void setup() {
@@ -27,6 +35,39 @@ void setup() {
                   get_boot_stage_name(get_boot_stage()));
     system_panic(PANIC_BOOT_FAILED, "System boot sequence failed");
   }
+
+  //** 初始化成功后，执行一次性存储测试写入
+  
+#if ENABLE_FLASH_TESTS
+  Serial.println("=== Flash Storage Write Test ===");
+  
+  // Flash写入测试 - 只执行一次
+  if (storage_test_write_ssid()) {
+    Serial.println("✓ Flash write completed in setup()");
+  } else {
+    Serial.println("✗ Flash write failed in setup()");
+  }
+  
+  Serial.println("=== Flash Storage Write Complete ===");
+#endif
+
+#if ENABLE_SD_TESTS
+  Serial.println("=== SD Card Storage Write Test ===");
+  
+  // SD卡诊断 - 帮助调试连接问题
+  Serial.println("=== Running SD Card Diagnostic ===");
+  sd_card_diagnostic_run();
+  Serial.println("=== SD Card Diagnostic Complete ===");
+  
+  // SD卡写入测试 - 只执行一次
+  if (storage_test_write_password_sd()) {
+    Serial.println("✓ SD card write completed in setup()");
+  } else {
+    Serial.println("✗ SD card write failed in setup()");
+  }
+  
+  Serial.println("=== SD Card Storage Write Complete ===");
+#endif
 
   //** 初始化成功 - setup() 结束后 Arduino 会自动调用 loop()
 }
@@ -48,12 +89,12 @@ void loop() {
   app_run();
 
 #if ENABLE_TFT_TESTS
-  //** TFT WiFi状态显示 - 模拟生产环境，每5秒自动更新
+  //** TFT显示更新 - 显示WiFi状态和存储内容
   static uint32_t last_tft_update = 0;
 
   if (now - last_tft_update > HW_SYSTEM_TFT_UPDATE_MS) { // TFT显示更新间隔
-    Serial.println("=== Auto TFT WiFi Status Update ===");
-    tft_display_test_run();
+    Serial.println("=== Auto TFT Display Update ===");
+    tft_display_test_run(); // 显示WiFi状态、Flash和SD卡内容
     last_tft_update = now;
   }
 #endif
@@ -66,4 +107,7 @@ void loop() {
   imu_test_configuration_functions(); // 调用主工程的配置测试函数
   imu_test_display_sensor_data(gesture_data); // 显示实时传感器数据
 #endif
+
+  //** 存储数据已在setup()中写入，loop()中不需要重复验证
+  //** 如果需要验证，可以通过TFT显示来确认数据是否正确显示
 }

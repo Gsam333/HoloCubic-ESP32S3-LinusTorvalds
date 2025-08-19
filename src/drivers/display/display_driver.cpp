@@ -11,6 +11,7 @@
 
 #include "display_driver.h"
 #include "hardware_config.h"  //** 硬件配置常量 / Hardware configuration constants
+#include "../../core/config/app_constants.h"  //** 应用常量 / Application constants
 #include <Arduino.h>  //** 仅用于PWM函数 / Only for PWM functions
 
 //** ========================================
@@ -60,14 +61,15 @@ void display_init(void) {
 void display_init_with_params(uint8_t rotation, uint8_t backlight) {
     DISPLAY_DEBUG("Initializing display: rotation=%d, backlight=%d", rotation, backlight);
 
-    //** 完全按照父工程的成功顺序 - 消除所有"聪明"的优化 / Exactly follow parent project's successful sequence - eliminate all "clever" optimizations
+    //** 完全按照父工程的成功顺序 - 消除所有"聪明"的优化
+    //** Exactly follow parent project's successful sequence - eliminate all "clever" optimizations
 
     //** 第1步：初始化背光PWM / Step 1: Initialize backlight PWM
     ledcSetup(HW_DISPLAY_PWM_CHANNEL, HW_DISPLAY_PWM_FREQUENCY, HW_DISPLAY_PWM_RESOLUTION);
     ledcAttachPin(TFT_BL, HW_DISPLAY_PWM_CHANNEL);  // 直接使用TFT_eSPI的定义
 
     //** 第2步：设置初始亮度为0 / Step 2: Set initial brightness to 0
-    ledcWrite(HW_DISPLAY_PWM_CHANNEL, 255); // 反转逻辑：255 = 0%亮度
+    ledcWrite(HW_DISPLAY_PWM_CHANNEL, PWM_MAX_VALUE); // 反转逻辑：255 = 0%亮度 (原魔数: 255)
 
     //** 第3步：初始化TFT显示屏 / Step 3: Initialize TFT display
     tft_display.begin();
@@ -85,7 +87,7 @@ void display_init_with_params(uint8_t rotation, uint8_t backlight) {
     tft_display.setRotation(rotation);
 
     //** 第6步：设置最终亮度 / Step 6: Set final brightness
-    display_backlight(backlight / 100.0f);
+    display_backlight(backlight / PERCENTAGE_TO_FLOAT_DIVISOR); // 原魔数: 100.0f
 
     //** 第7步：最终清屏 / Step 7: Final clear
     tft_display.fillScreen(TFT_BLACK);
@@ -127,7 +129,7 @@ void display_backlight(float duty) {
     duty = 1.0f - duty;
 
     //** 直接PWM控制 / Direct PWM control
-    uint8_t pwm_value = (uint8_t)(duty * 255);
+    uint8_t pwm_value = (uint8_t)(duty * PWM_MAX_VALUE); // 原魔数: 255
     ledcWrite(HW_DISPLAY_PWM_CHANNEL, pwm_value);
 
     DISPLAY_DEBUG("Backlight set: duty=%.2f, pwm=%d", 1.0f - duty, pwm_value);

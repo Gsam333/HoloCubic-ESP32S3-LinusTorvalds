@@ -4,6 +4,7 @@
 #include "heartbeat.h"
 #include "../../core/config/hardware_config.h"
 #include "../../core/state/system_state.h"
+#include "../../core/config/app_constants.h"
 #include "../../drivers/led/led_driver.h"
 #include <Arduino.h>
 
@@ -19,7 +20,7 @@ static uint32_t phase_start_ms = 0;
 
 void heartbeat_init(void) {
     HEARTBEAT_STATE()->last_beat_ms = millis();
-    HEARTBEAT_STATE()->interval_ms = 1000;
+    HEARTBEAT_STATE()->interval_ms = HEARTBEAT_DEFAULT_INTERVAL_MS; // 原魔数: 1000
     HEARTBEAT_STATE()->beat_count = 0;
     heartbeat_phase = HEARTBEAT_IDLE;
 }

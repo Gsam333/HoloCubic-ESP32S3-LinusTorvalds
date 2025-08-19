@@ -4,6 +4,7 @@
 #include "command_handler.h"
 #include "../../config/app_config.h" // 测试代码控制
 #include "../network/wifi_app.h"
+#include "../../core/config/app_constants.h"
 
 #if ENABLE_LED_TESTS
 #include "../../test/led_test.h"
@@ -71,11 +72,11 @@ void command_handler_process(void) {
       Serial.print("Signal: ");
       Serial.print(wifi_state->rssi);
       Serial.println(" dBm");
-      uint32_t uptime = (millis() - wifi_state->connect_time) / 1000;
+      uint32_t uptime = (millis() - wifi_state->connect_time) / MILLISECONDS_TO_SECONDS; // 原魔数: 1000
       Serial.print("Uptime: ");
-      Serial.print(uptime / 60);
+      Serial.print(uptime / SECONDS_TO_MINUTES); // 原魔数: 60
       Serial.print("m ");
-      Serial.print(uptime % 60);
+      Serial.print(uptime % SECONDS_TO_MINUTES); // 原魔数: 60
       Serial.println("s");
     } else {
       Serial.println("✗ Not Connected");
@@ -152,7 +153,7 @@ void command_handler_process(void) {
 
 #if ENABLE_TEST_CODE
   default:
-    if (cmd >= 32 && cmd <= 126) { // 可打印字符
+    if (cmd >= ASCII_PRINTABLE_START && cmd <= ASCII_PRINTABLE_END) { // 可打印字符 (原魔数: 32, 126)
       Serial.printf("Unknown command: '%c' (Test mode enabled)\n", cmd);
     }
     break;

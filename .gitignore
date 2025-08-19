@@ -90,7 +90,8 @@ docs/
 .codebuddy/
 .cache/
 .kiro/
-
+compile_commands.json
+*.png
 # 调试日志和临时文件
 debug-log/
 

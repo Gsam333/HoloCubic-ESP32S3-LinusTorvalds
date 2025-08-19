@@ -3,6 +3,7 @@
 
 #include "panic.h"
 #include "../core/config/hardware_config.h"
+#include "../core/config/system_constants.h"  // 系统常量定义
 #include "app_config.h"
 #include <Arduino.h>
 
@@ -44,11 +45,11 @@ static void attempt_graceful_shutdown(void) {
     
     //** 尝试保存关键数据
     Serial.println("- Saving critical data...");
-    delay(100);
+    delay(SYSTEM_DATA_SAVE_DELAY_MS);
     
     //** 关闭外设
     Serial.println("- Shutting down peripherals...");
-    delay(100);
+    delay(SYSTEM_SHUTDOWN_DELAY_MS);
     
     Serial.println("Graceful shutdown completed.");
 }
@@ -56,7 +57,7 @@ static void attempt_graceful_shutdown(void) {
 //** 打印用户选项
 static void panic_print_options(void) {
     Serial.println("\nOptions:");
-    Serial.printf("- System will auto-restart in %d seconds\n", HW_PANIC_TIMEOUT_MS / 1000);
+    Serial.printf("- System will auto-restart in %d seconds\n", HW_PANIC_TIMEOUT_MS / PANIC_TIMEOUT_DIVISOR);
     Serial.println("- Send 'h' to halt system");
     Serial.println("- Send 'r' to restart immediately");
 }
@@ -72,7 +73,7 @@ static bool panic_handle_user_input(void) {
         Serial.println("System halted by user request.");
         Serial.println("Reset button or power cycle required.");
         while (1) {
-            delay(1000);  // 只有用户明确要求才死循环
+            delay(PANIC_HALT_LOOP_DELAY_MS);  // 只有用户明确要求才死循环
         }
     } else if (cmd == 'r' || cmd == 'R') {
         Serial.println("Restarting immediately...");
@@ -88,12 +89,12 @@ static void panic_wait_for_user_or_restart(void) {
     
     while (millis() - start_time < timeout_ms) {
         panic_handle_user_input();
-        delay(100);
+        delay(PANIC_INPUT_CHECK_DELAY_MS);
     }
     
     //** 超时后自动重启
     Serial.println("Timeout reached. Restarting system...");
-    delay(1000);
+    delay(PANIC_RESTART_DELAY_MS);
     ESP.restart();
 }
 
@@ -114,7 +115,7 @@ void system_panic(panic_reason_t reason, const char* message) {
 
 bool system_health_check(void) {
     //** 检查内存
-    if (ESP.getFreeHeap() < 10000) {  // 少于10KB可用内存
+    if (ESP.getFreeHeap() < MIN_FREE_HEAP_BYTES) {  // 少于10KB可用内存
         return false;
     }
     

@@ -39,7 +39,7 @@
 #define HW_LED_BRIGHTNESS 200
 
 // TFT dispaly显示配置 (ST7789 240x240)
-// 
+//
 // 【Linus式设计决策】
 // 引脚配置统一在 lib/TFT_eSPI/User_Setups/Setup24_ST7789.h 中定义
 // 这里只定义应用层特有的参数，避免重复定义
@@ -65,25 +65,32 @@
 #define HW_IMU_ADDRESS 0x6B
 #define HW_IMU_INT_PIN 19
 
+// SD卡配置 (SD_MMC) - 基于HoloCubic硬件设计的工作配置
+// 这个配置已经在test项目中验证可以工作
+// 关键：使用SDMMC_FREQ_DEFAULT频率避免ESP32-S3的40MHz频率问题
+#define HW_SD_CLK 2   // SD卡时钟引脚 (SDMC_CLK)
+#define HW_SD_CMD 38  // SD卡命令引脚 (SDMMC_CMD) 
+#define HW_SD_D0 1    // SD卡数据引脚D0 (SDMMC_D0)
+
 // 系统配置
 #define HW_SYSTEM_CPU_MHZ 240
 #define HW_SYSTEM_SERIAL_BAUD 115200
 
 // 系统时间常量 - 消除魔数
-#define HW_SYSTEM_STARTUP_DELAY_MS     1000    // ESP32-S3启动稳定时间
-#define HW_SYSTEM_HEALTH_CHECK_MS      30000   // 系统健康检查间隔
-#define HW_SYSTEM_TFT_UPDATE_MS        5000    // TFT显示更新间隔
+#define HW_SYSTEM_STARTUP_DELAY_MS 1000 // ESP32-S3启动稳定时间
+#define HW_SYSTEM_HEALTH_CHECK_MS 30000 // 系统健康检查间隔
+#define HW_SYSTEM_TFT_UPDATE_MS 10000   // TFT显示更新间隔
 
 // LED系统常量
-#define HW_LED_STARTUP_DURATION_MS     200     // 启动指示LED持续时间
-#define HW_LED_HEARTBEAT_ON_MS         50      // 心跳LED点亮时间
+#define HW_LED_STARTUP_DURATION_MS 200 // 启动指示LED持续时间
+#define HW_LED_HEARTBEAT_ON_MS 50      // 心跳LED点亮时间
 
-// WiFi系统常量  
-#define HW_WIFI_CONNECT_TIMEOUT_MS     30000   // WiFi连接超时
-#define HW_WIFI_STATUS_CHECK_MS        5000    // WiFi状态检查间隔
+// WiFi系统常量
+#define HW_WIFI_CONNECT_TIMEOUT_MS 30000 // WiFi连接超时
+#define HW_WIFI_STATUS_CHECK_MS 5000     // WiFi状态检查间隔
 
 // 系统恢复常量
-#define HW_PANIC_TIMEOUT_MS            10000   // 系统panic超时重启时间
+#define HW_PANIC_TIMEOUT_MS 10000 // 系统panic超时重启时间
 
 // ========================================
 // 第三方库兼容宏 - 不修改库，只提供宏
@@ -98,10 +105,12 @@
 
 // TFT_eSPI配置说明 / TFT_eSPI Configuration Note
 // TFT_eSPI库的配置在 lib/TFT_eSPI/User_Setups/Setup24_ST7789.h 中定义
-// TFT_eSPI library configuration is defined in lib/TFT_eSPI/User_Setups/Setup24_ST7789.h
-// 
+// TFT_eSPI library configuration is defined in
+// lib/TFT_eSPI/User_Setups/Setup24_ST7789.h
+//
 // 这避免了宏重定义冲突，并确保TFT_eSPI在编译时获得正确的配置
-// This avoids macro redefinition conflicts and ensures TFT_eSPI gets correct configuration at compile time
+// This avoids macro redefinition conflicts and ensures TFT_eSPI gets correct
+// configuration at compile time
 
 // IMU 兼容宏
 #define IMU_I2C_SDA HW_IMU_SDA
@@ -167,7 +176,7 @@ typedef struct {
 // 【Linus式简化】
 // 移除复杂的运行时配置函数，避免循环依赖
 // 调试信息直接在各自的驱动中处理
-// 
+//
 // 如果需要获取硬件配置，直接使用：
 // - LED: HW_LED_* 宏
 // - Display: TFT_* 宏 (来自TFT_eSPI)
